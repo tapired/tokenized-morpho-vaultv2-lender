@@ -19,6 +19,23 @@ contract OperationTest is Setup {
         // TODO: add additional check on strat params
     }
 
+    function test_AL() public {
+        uint _amount = 1000e6;
+
+        // Deposit into strategy
+        mintAndDepositIntoStrategy(strategy, user, _amount);
+
+        assertEq(strategy.totalAssets(), _amount, "!totalAssets");
+
+        // Earn Interest
+        skip(1 days);
+
+        console2.log("availableWithdrawLimit", strategy.availableWithdrawLimit(user));
+
+
+        assertGe(strategy.availableWithdrawLimit(user), _amount, "!availableWithdrawLimit");
+    }
+
     function test_operation(uint256 _amount) public {
         vm.assume(_amount > minFuzzAmount && _amount < maxFuzzAmount);
 
