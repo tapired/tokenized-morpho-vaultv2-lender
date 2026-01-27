@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.18;
 
-import {Strategy, ERC20} from "./Strategy.sol";
+import {MorphoVaultV2Lender, ERC20} from "./Strategy.sol";
 import {IStrategyInterface} from "./interfaces/IStrategyInterface.sol";
 
 contract StrategyFactory {
@@ -35,11 +35,13 @@ contract StrategyFactory {
      */
     function newStrategy(
         address _asset,
-        string calldata _name
+        string calldata _name,
+        address _morphoVaultV2,
+        address _morphoVaultV1
     ) external virtual returns (address) {
         // tokenized strategies available setters.
         IStrategyInterface _newStrategy = IStrategyInterface(
-            address(new Strategy(_asset, _name))
+            address(new MorphoVaultV2Lender(_asset, _name, _morphoVaultV2, _morphoVaultV1))
         );
 
         _newStrategy.setPerformanceFeeRecipient(performanceFeeRecipient);

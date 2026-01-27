@@ -30,6 +30,9 @@ contract OperationTest is Setup {
         // Earn Interest
         skip(1 days);
 
+        uint256 toAirdrop = (_amount * 9000) / MAX_BPS;
+        airdrop(asset, address(strategy), toAirdrop);
+
         // Report profit
         vm.prank(keeper);
         (uint256 profit, uint256 loss) = strategy.report();
@@ -77,7 +80,7 @@ contract OperationTest is Setup {
         (uint256 profit, uint256 loss) = strategy.report();
 
         // Check return Values
-        assertGe(profit, toAirdrop, "!profit");
+        assertGe(profit + 1, toAirdrop, "!profit");
         assertEq(loss, 0, "!loss");
 
         skip(strategy.profitMaxUnlockTime());

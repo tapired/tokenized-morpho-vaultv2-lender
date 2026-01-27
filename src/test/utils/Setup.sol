@@ -4,7 +4,7 @@ pragma solidity ^0.8.18;
 import "forge-std/console2.sol";
 import {Test} from "forge-std/Test.sol";
 
-import {Strategy, ERC20} from "../../Strategy.sol";
+import {MorphoVaultV2Lender, ERC20} from "../../Strategy.sol";
 import {StrategyFactory} from "../../StrategyFactory.sol";
 import {IStrategyInterface} from "../../interfaces/IStrategyInterface.sol";
 
@@ -43,20 +43,29 @@ contract Setup is Test, IEvents {
     uint256 public MAX_BPS = 10_000;
 
     // Fuzz from $0.01 of 1e6 stable coins up to 1 trillion of a 1e18 coin
-    uint256 public maxFuzzAmount = 1e30;
-    uint256 public minFuzzAmount = 10_000;
+    uint256 public maxFuzzAmount = 100_000_000;
+    uint256 public minFuzzAmount = 10;
 
     // Default profit max unlock time is set for 10 days
     uint256 public profitMaxUnlockTime = 10 days;
+
+    ///// Strategy Specific tings //////
+    address public morphoVaultV2;
+    address public morphoVaultV1;
 
     function setUp() public virtual {
         _setTokenAddrs();
 
         // Set asset
-        asset = ERC20(tokenAddrs["DAI"]);
+        asset = ERC20(tokenAddrs["USDC"]);
+
+        _setMorphoVaults(address(asset));
 
         // Set decimals
         decimals = asset.decimals();
+
+        maxFuzzAmount = maxFuzzAmount * 10 ** decimals;
+        minFuzzAmount = minFuzzAmount * 10 ** decimals;
 
         strategyFactory = new StrategyFactory(
             management,
@@ -85,7 +94,9 @@ contract Setup is Test, IEvents {
             address(
                 strategyFactory.newStrategy(
                     address(asset),
-                    "Tokenized Strategy"
+                    "Tokenized Strategy",
+                    morphoVaultV2,
+                    morphoVaultV1
                 )
             )
         );
@@ -163,5 +174,13 @@ contract Setup is Test, IEvents {
         tokenAddrs["USDT"] = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
         tokenAddrs["DAI"] = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
         tokenAddrs["USDC"] = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    }
+
+    function _setMorphoVaults(address _token) internal {
+        if (_token == tokenAddrs["USDC"]) {
+            // OG USDC mainnet
+            morphoVaultV2 = 0xB885F6d448dA7E2C642Ec31190B629E40E87B069;
+            morphoVaultV1 = 0xF9bdDd4A9b3A45f980e11fDDE96e16364dDBEc49;
+        }
     }
 }

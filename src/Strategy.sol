@@ -3,6 +3,8 @@ pragma solidity ^0.8.18;
 
 import {BaseStrategy, ERC20} from "@tokenized-strategy/BaseStrategy.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 // Import interfaces for many popular DeFi projects, or add your own!
 //import "../interfaces/<protocol>/<Interface>.sol";
@@ -20,13 +22,26 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 // NOTE: To implement permissioned functions you can use the onlyManagement, onlyEmergencyAuthorized and onlyKeepers modifiers
 
-contract Strategy is BaseStrategy {
+contract MorphoVaultV2Lender is BaseStrategy {
     using SafeERC20 for ERC20;
+
+    IERC4626 public morphoVaultV2;
+    IERC4626 public morphoVaultV1;
+
+    bool public open = true;
+    mapping(address => bool) public allowed;
 
     constructor(
         address _asset,
-        string memory _name
-    ) BaseStrategy(_asset, _name) {}
+        string memory _name,
+        address _morphoVaultV2,
+        address _morphoVaultV1
+    ) BaseStrategy(_asset, _name) {
+        morphoVaultV2 = IERC4626(_morphoVaultV2);
+        morphoVaultV1 = IERC4626(_morphoVaultV1);
+        require(morphoVaultV2.asset() == _asset && morphoVaultV1.asset() == _asset, "Asset mismatch");
+        ERC20(_asset).forceApprove(_morphoVaultV2, type(uint256).max);
+    }
 
     /*//////////////////////////////////////////////////////////////
                 NEEDED TO BE OVERRIDDEN BY STRATEGIST
@@ -47,6 +62,7 @@ contract Strategy is BaseStrategy {
         // TODO: implement deposit logic EX:
         //
         //      lendingPool.deposit(address(asset), _amount ,0);
+        morphoVaultV2.deposit(_amount, address(this));
     }
 
     /**
@@ -74,6 +90,9 @@ contract Strategy is BaseStrategy {
         // TODO: implement withdraw logic EX:
         //
         //      lendingPool.withdraw(address(asset), _amount);
+
+        uint256 shares = morphoVaultV2.previewWithdraw(_amount);
+        morphoVaultV2.redeem(shares, address(this), address(this));
     }
 
     /**
@@ -110,7 +129,7 @@ contract Strategy is BaseStrategy {
         //      }
         //      _totalAssets = aToken.balanceOf(address(this)) + asset.balanceOf(address(this));
         //
-        _totalAssets = asset.balanceOf(address(this));
+        _totalAssets = asset.balanceOf(address(this)) + morphoVaultV2.convertToAssets(morphoVaultV2.balanceOf(address(this)));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -147,7 +166,7 @@ contract Strategy is BaseStrategy {
         // if(yieldSource.notShutdown()) {
         //    return asset.balanceOf(address(this)) + asset.balanceOf(yieldSource);
         // }
-        return asset.balanceOf(address(this));
+        return asset.balanceOf(address(this)) + Math.min(morphoVaultV1.maxWithdraw(address(morphoVaultV2)), strategyShares) + ERC20(asset).balanceOf(address(morphoVaultV2));
     }
 
     /**
@@ -170,17 +189,16 @@ contract Strategy is BaseStrategy {
      *
      * @param . The address that is depositing into the strategy.
      * @return . The available amount the `_owner` can deposit in terms of `asset`
-     *
+     */
     function availableDepositLimit(
         address _owner
     ) public view override returns (uint256) {
-        TODO: If desired Implement deposit limit logic and any needed state variables .
-        
-        EX:    
-            uint256 totalAssets = TokenizedStrategy.totalAssets();
-            return totalAssets >= depositLimit ? 0 : depositLimit - totalAssets;
+        if (!open && !allowed[_owner]) {
+            return 0;
+        }
+        return morphoVaultV1.maxDeposit(address(this));
     }
-    */
+    
 
     /**
      * @dev Optional function for strategist to override that can
@@ -235,14 +253,14 @@ contract Strategy is BaseStrategy {
      *    }
      *
      * @param _amount The amount of asset to attempt to free.
-     *
+     */
     function _emergencyWithdraw(uint256 _amount) internal override {
-        TODO: If desired implement simple logic to free deployed funds.
+        uint256 fullFreeAmount = morphoVaultV1.maxWithdraw(address(morphoVaultV2));
+        uint256 strategyAmount = morphoVaultV2.convertToAssets(morphoVaultV2.balanceOf(address(this)));
+        uint256 freeAmount = Math.min(fullFreeAmount, strategyAmount);
 
-        EX:
-            _amount = min(_amount, aToken.balanceOf(address(this)));
-            _freeFunds(_amount);
+        _amount = Math.min(_amount, freeAmount);
+
+        morphoVaultV2.withdraw(_amount, address(this), address(this));
     }
-
-    */
 }
