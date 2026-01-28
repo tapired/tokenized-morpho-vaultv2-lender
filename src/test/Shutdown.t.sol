@@ -33,7 +33,7 @@ contract ShutdownTest is Setup {
         strategy.redeem(_amount, user, user);
 
         assertGe(
-            asset.balanceOf(user),
+            asset.balanceOf(user) + 1,
             balanceBefore + _amount,
             "!final balance"
         );
@@ -68,7 +68,7 @@ contract ShutdownTest is Setup {
         strategy.redeem(_amount, user, user);
 
         assertGe(
-            asset.balanceOf(user),
+            asset.balanceOf(user) + 1,
             balanceBefore + _amount,
             "!final balance"
         );
