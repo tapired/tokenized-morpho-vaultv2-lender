@@ -4,29 +4,19 @@ pragma solidity ^0.8.18;
 import {BaseStrategy, ERC20} from "@tokenized-strategy/BaseStrategy.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
-import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Base4626Compounder} from "@periphery/Bases/4626Compounder/Base4626Compounder.sol";
+import {AuctionSwapper} from "@periphery/swappers/AuctionSwapper.sol";
+import {UniswapV3Swapper} from "@periphery/swappers/UniswapV3Swapper.sol";
 
-// Import interfaces for many popular DeFi projects, or add your own!
-//import "../interfaces/<protocol>/<Interface>.sol";
-
-/**
- * The `TokenizedStrategy` variable can be used to retrieve the strategies
- * specific storage data your contract.
- *
- *       i.e. uint256 totalAssets = TokenizedStrategy.totalAssets()
- *
- * This can not be used for write functions. Any TokenizedStrategy
- * variables that need to be updated post deployment will need to
- * come from an external call from the strategies specific `management`.
- */
-
-// NOTE: To implement permissioned functions you can use the onlyManagement, onlyEmergencyAuthorized and onlyKeepers modifiers
-
-contract MorphoVaultV2Lender is Base4626Compounder {
+contract MorphoVaultV2Lender is
+    Base4626Compounder,
+    AuctionSwapper,
+    UniswapV3Swapper
+{
     using SafeERC20 for ERC20;
 
     IERC4626 public morphoVaultV1;
+    address public adapter; // MorphoV2 -> adapter -> MorphoV1
     bool public open = true;
     mapping(address => bool) public allowed;
 
@@ -34,77 +24,87 @@ contract MorphoVaultV2Lender is Base4626Compounder {
         address _asset,
         string memory _name,
         address _morphoVaultV2,
-        address _morphoVaultV1
+        address _morphoVaultV1,
+        address _adapter
     ) Base4626Compounder(_asset, _name, _morphoVaultV2) {
         morphoVaultV1 = IERC4626(_morphoVaultV1);
+        adapter = _adapter;
     }
-
 
     /*//////////////////////////////////////////////////////////////
                     OPTIONAL TO OVERRIDE BY STRATEGIST
     //////////////////////////////////////////////////////////////*/
 
-    /**
-     * @notice Gets the max amount of `asset` that can be withdrawn.
-     * @dev Defaults to an unlimited amount for any address. But can
-     * be overridden by strategists.
-     *
-     * This function will be called before any withdraw or redeem to enforce
-     * any limits desired by the strategist. This can be used for illiquid
-     * or sandwichable strategies.
-     *
-     *   EX:
-     *       return asset.balanceOf(yieldSource);
-     *
-     * This does not need to take into account the `_owner`'s share balance
-     * or conversion rates from shares to assets.
-     *
-     * @param . The address that is withdrawing from the strategy.
-     * @return . The available amount that can be withdrawn in terms of `asset`
-     */
+    // MorphoV2 -> adapter -> MorphoV1
     function availableWithdrawLimit(
         address /*_owner*/
     ) public view override returns (uint256) {
-        // NOTE: Withdraw limitations such as liquidity constraints should be accounted for HERE
-        //  rather than _freeFunds in order to not count them as losses on withdraws.
-
-        // TODO: If desired implement withdraw limit logic and any needed state variables.
-
-        // EX:
-        // if(yieldSource.notShutdown()) {
-        //    return asset.balanceOf(address(this)) + asset.balanceOf(yieldSource);
-        // }
-        return balanceOfAsset() + asset.balanceOf(address(vault)) + morphoVaultV1.convertToAssets(morphoVaultV1.maxRedeem(address(vault)));
+        return
+            balanceOfAsset() +
+            asset.balanceOf(address(vault)) +
+            morphoVaultV1.convertToAssets(
+                morphoVaultV1.maxRedeem(address(adapter))
+            );
     }
 
-    /**
-     * @notice Gets the max amount of `asset` that an address can deposit.
-     * @dev Defaults to an unlimited amount for any address. But can
-     * be overridden by strategists.
-     *
-     * This function will be called before any deposit or mints to enforce
-     * any limits desired by the strategist. This can be used for either a
-     * traditional deposit limit or for implementing a whitelist etc.
-     *
-     *   EX:
-     *      if(isAllowed[_owner]) return super.availableDepositLimit(_owner);
-     *
-     * This does not need to take into account any conversion rates
-     * from shares to assets. But should know that any non max uint256
-     * amounts may be converted to shares. So it is recommended to keep
-     * custom amounts low enough as not to cause overflow when multiplied
-     * by `totalSupply`.
-     *
-     * @param . The address that is depositing into the strategy.
-     * @return . The available amount the `_owner` can deposit in terms of `asset`
-     */
+    // MorphoV2 -> adapter -> MorphoV1
     function availableDepositLimit(
         address _owner
     ) public view override returns (uint256) {
         if (!open && !allowed[_owner]) {
             return 0;
         }
-        return morphoVaultV1.maxDeposit(address(this));
+        return morphoVaultV1.maxDeposit(address(adapter));
     }
-    
+
+    ////////////////////////////////
+    // AuctionSwapper implementation
+    ////////////////////////////////
+
+    function setAuction(address _auction) external onlyManagement {
+        auction = _auction;
+    }
+
+    function setUseAuction(bool _useAuction) external onlyManagement {
+        useAuction = _useAuction;
+    }
+
+    ////////////////////////////////
+    // UniswapV3Swapper implementation
+    ////////////////////////////////
+
+    function setUniFees(
+        address _token0,
+        address _token1,
+        uint24 _fee
+    ) external onlyManagement {
+        uniFees[_token0][_token1] = _fee;
+        uniFees[_token1][_token0] = _fee;
+    }
+
+    function setBase(address _base) external onlyManagement {
+        base = _base;
+    }
+
+    ////////////////////////////////
+    // BaseSwapper Implementation
+    ////////////////////////////////
+
+    function setMinAmountToSell(
+        uint256 _minAmountToSell
+    ) external onlyManagement {
+        minAmountToSell = _minAmountToSell;
+    }
+
+    ////////////////////////////////
+    // Access control Implementation
+    ////////////////////////////////
+
+    function setOpen(bool _open) external onlyManagement {
+        open = _open;
+    }
+
+    function setAllowed(address _user, bool _allowed) external onlyManagement {
+        allowed[_user] = _allowed;
+    }
 }

@@ -52,6 +52,7 @@ contract Setup is Test, IEvents {
     ///// Strategy Specific tings //////
     address public morphoVaultV2;
     address public morphoVaultV1;
+    address public adapter;
 
     function setUp() public virtual {
         _setTokenAddrs();
@@ -96,7 +97,8 @@ contract Setup is Test, IEvents {
                     address(asset),
                     "Tokenized Strategy",
                     morphoVaultV2,
-                    morphoVaultV1
+                    morphoVaultV1,
+                    adapter
                 )
             )
         );
@@ -181,6 +183,7 @@ contract Setup is Test, IEvents {
             // OG USDC mainnet
             morphoVaultV2 = 0xB885F6d448dA7E2C642Ec31190B629E40E87B069;
             morphoVaultV1 = 0xF9bdDd4A9b3A45f980e11fDDE96e16364dDBEc49;
+            adapter = 0x2266DE055878C9E8A415ed4a955a61e2C3ef398C;
         }
     }
 }

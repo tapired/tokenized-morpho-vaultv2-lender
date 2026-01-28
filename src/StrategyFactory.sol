@@ -37,11 +37,20 @@ contract StrategyFactory {
         address _asset,
         string calldata _name,
         address _morphoVaultV2,
-        address _morphoVaultV1
+        address _morphoVaultV1,
+        address _adapter
     ) external virtual returns (address) {
         // tokenized strategies available setters.
         IStrategyInterface _newStrategy = IStrategyInterface(
-            address(new MorphoVaultV2Lender(_asset, _name, _morphoVaultV2, _morphoVaultV1))
+            address(
+                new MorphoVaultV2Lender(
+                    _asset,
+                    _name,
+                    _morphoVaultV2,
+                    _morphoVaultV1,
+                    _adapter
+                )
+            )
         );
 
         _newStrategy.setPerformanceFeeRecipient(performanceFeeRecipient);
