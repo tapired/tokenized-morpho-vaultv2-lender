@@ -119,7 +119,7 @@ contract MorphoVaultV2Lender is
                 _swapFrom(
                     rewardToken,
                     address(asset),
-                    rewardToken.balanceOf(address(this)),
+                    ERC20(rewardToken).balanceOf(address(this)),
                     0
                 );
             }
