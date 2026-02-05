@@ -38,7 +38,8 @@ contract StrategyFactory {
         string calldata _name,
         address _morphoVaultV2,
         address _morphoVaultV1,
-        address _adapter
+        address _adapter,
+        address _router
     ) external virtual returns (address) {
         // tokenized strategies available setters.
         IStrategyInterface _newStrategy = IStrategyInterface(
@@ -48,7 +49,8 @@ contract StrategyFactory {
                     _name,
                     _morphoVaultV2,
                     _morphoVaultV1,
-                    _adapter
+                    _adapter,
+                    _router
                 )
             )
         );

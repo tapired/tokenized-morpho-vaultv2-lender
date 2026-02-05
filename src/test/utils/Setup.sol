@@ -53,6 +53,7 @@ contract Setup is Test, IEvents {
     address public morphoVaultV2;
     address public morphoVaultV1;
     address public adapter;
+    address public router = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
 
     function setUp() public virtual {
         _setTokenAddrs();
@@ -98,7 +99,8 @@ contract Setup is Test, IEvents {
                     "Tokenized Strategy",
                     morphoVaultV2,
                     morphoVaultV1,
-                    adapter
+                    adapter,
+                    router
                 )
             )
         );

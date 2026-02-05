@@ -20,28 +20,24 @@ contract MorphoVaultV2Lender is
     bool public open = true;
     mapping(address => bool) public allowed;
 
+    address[] public rewardTokens;
+
     constructor(
         address _asset,
         string memory _name,
         address _morphoVaultV2,
         address _morphoVaultV1,
-        address _adapter
+        address _adapter,
+        address _router
     ) Base4626Compounder(_asset, _name, _morphoVaultV2) {
         morphoVaultV1 = IERC4626(_morphoVaultV1);
         adapter = _adapter;
+        router = _router;
     }
 
     /*//////////////////////////////////////////////////////////////
                     OPTIONAL TO OVERRIDE BY STRATEGIST
     //////////////////////////////////////////////////////////////*/
-
-    // MorphoV2 -> adapter -> MorphoV1
-    function availableWithdrawLimit(
-        address /*_owner*/
-    ) public view override returns (uint256) {
-        uint256 adapterAndIdle = super.availableWithdrawLimit(address(this));
-        return adapterAndIdle + asset.balanceOf(address(vault));
-    }
 
     // MorphoV2 -> adapter -> MorphoV1
     function availableDepositLimit(
@@ -66,20 +62,18 @@ contract MorphoVaultV2Lender is
     ////////////////////////////////
 
     function setAuction(address _auction) external onlyManagement {
-        require(
-            Auction(_auction).receiver() == address(this),
-            "wrong receiver"
-        );
-        require(Auction(_auction).want() == address(asset), "wrong want");
-        auction = _auction;
+        _setAuction(_auction);
     }
 
     function setUseAuction(bool _useAuction) external onlyManagement {
-        useAuction = _useAuction;
+        _setUseAuction(_useAuction);
     }
 
     function kickAuction(address _from) external override returns (uint256) {
-        require(_from != address(asset), "cannot kick asset");
+        require(
+            _from != address(asset) && _from != address(vault),
+            "cannot kick asset"
+        );
         return _kickAuction(_from);
     }
 
@@ -98,6 +92,51 @@ contract MorphoVaultV2Lender is
 
     function setBase(address _base) external onlyManagement {
         base = _base;
+    }
+
+    function addRewardToken(address _rewardToken) external onlyManagement {
+        require(
+            _rewardToken != address(asset) && _rewardToken != address(vault),
+            "Invalid reward token"
+        );
+        rewardTokens.push(_rewardToken);
+    }
+
+    function removeRewardToken(address _rewardToken) external onlyManagement {
+        for (uint256 i = 0; i < rewardTokens.length; i++) {
+            if (rewardTokens[i] == _rewardToken) {
+                rewardTokens[i] = rewardTokens[rewardTokens.length - 1];
+                rewardTokens.pop();
+            }
+        }
+    }
+
+    function _claimAndSellRewards() internal override {
+        if (!useAuction) {
+            for (uint256 i = 0; i < rewardTokens.length; ++i) {
+                address rewardToken = rewardTokens[i];
+                // rewards will be in the contract no need to claim
+                _swapFrom(
+                    rewardToken,
+                    address(asset),
+                    rewardToken.balanceOf(address(this)),
+                    0
+                );
+            }
+        }
+    }
+
+    // if we need to selll specific amount of a reward token
+    // no need to check if reward token is in the array or not, just checking it's not asset or vault is enough
+    function manualSellRewards(
+        address _rewardToken,
+        uint256 _amount
+    ) external onlyKeepers {
+        require(
+            _rewardToken != address(asset) && _rewardToken != address(vault),
+            "Invalid reward token"
+        );
+        _swapFrom(_rewardToken, address(asset), _amount, 0);
     }
 
     ////////////////////////////////
