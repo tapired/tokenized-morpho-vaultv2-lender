@@ -7,6 +7,7 @@ import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {Base4626Compounder} from "@periphery/Bases/4626Compounder/Base4626Compounder.sol";
 import {AuctionSwapper, Auction} from "@periphery/swappers/AuctionSwapper.sol";
 import {UniswapV3Swapper} from "@periphery/swappers/UniswapV3Swapper.sol";
+import {IMerklDistributor} from "./interfaces/IMerklDistributor.sol";
 
 contract MorphoVaultV2Lender is
     Base4626Compounder,
@@ -21,6 +22,10 @@ contract MorphoVaultV2Lender is
     mapping(address => bool) public allowed;
 
     address[] public rewardTokens;
+
+    /// @notice The Merkl Distributor contract for claiming rewards
+    IMerklDistributor public constant MERKL_DISTRIBUTOR =
+        IMerklDistributor(0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae);
 
     constructor(
         address _asset,
@@ -69,12 +74,30 @@ contract MorphoVaultV2Lender is
         _setUseAuction(_useAuction);
     }
 
-    function kickAuction(address _from) external override returns (uint256) {
+    function kickAuction(
+        address _from
+    ) external override onlyKeepers returns (uint256) {
         require(
             _from != address(asset) && _from != address(vault),
             "cannot kick asset"
         );
         return _kickAuction(_from);
+    }
+
+    /**
+     * @notice Claims rewards from Merkl distributor
+     * @param users Recipients of tokens
+     * @param tokens ERC20 tokens being claimed
+     * @param amounts Amounts of tokens that will be sent to the corresponding users
+     * @param proofs Array of Merkle proofs verifying the claims
+     */
+    function claim(
+        address[] calldata users,
+        address[] calldata tokens,
+        uint256[] calldata amounts,
+        bytes32[][] calldata proofs
+    ) external {
+        MERKL_DISTRIBUTOR.claim(users, tokens, amounts, proofs);
     }
 
     ////////////////////////////////
