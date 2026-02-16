@@ -10,7 +10,9 @@ import {UniswapV3Swapper} from "@periphery/swappers/UniswapV3Swapper.sol";
 import {IMerklDistributor} from "./interfaces/IMerklDistributor.sol";
 
 contract MorphoVaultV2Lender is
-    UniswapV3Swapper, AuctionSwapper, Base4626Compounder
+    UniswapV3Swapper,
+    AuctionSwapper,
+    Base4626Compounder
 {
     using SafeERC20 for ERC20;
 
