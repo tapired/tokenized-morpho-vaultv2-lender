@@ -98,8 +98,6 @@ contract Setup is Test, IEvents {
                     address(asset),
                     "Tokenized Strategy",
                     morphoVaultV2,
-                    morphoVaultV1,
-                    adapter,
                     router
                 )
             )
