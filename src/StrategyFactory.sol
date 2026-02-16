@@ -25,6 +25,9 @@ contract StrategyFactory {
     /// @notice Track the deployments. asset => pool => strategy
     mapping(address => address) public deployments;
 
+    /// @notice Track the flexible deployments. asset => pool => strategy
+    mapping(address => address) public flexibleDeployments;
+
     constructor(
         address _management,
         address _performanceFeeRecipient,
@@ -77,6 +80,47 @@ contract StrategyFactory {
         emit NewStrategy(address(_newStrategy), _asset);
 
         deployments[_asset] = address(_newStrategy);
+        return address(_newStrategy);
+    }
+
+    /**
+     * @notice Deploy a new Strategy with adapter and v1 as parameters
+     * @param _asset The underlying asset for the strategy to use.
+     * @return . The address of the new strategy.
+     */
+    function newStrategyFlexibleDeployment(
+        address _asset,
+        string calldata _name,
+        address _morphoVaultV2,
+        address _morphoVaultV1,
+        address _adapter,
+        address _router
+    ) external virtual returns (address) {
+        // tokenized strategies available setters
+        IStrategyInterface _newStrategy = IStrategyInterface(
+            address(
+                new MorphoVaultV2Lender(
+                    _asset,
+                    _name,
+                    _morphoVaultV2,
+                    _morphoVaultV1,
+                    _adapter,
+                    _router
+                )
+            )
+        );
+
+        _newStrategy.setPerformanceFeeRecipient(performanceFeeRecipient);
+
+        _newStrategy.setKeeper(keeper);
+
+        _newStrategy.setPendingManagement(management);
+
+        _newStrategy.setEmergencyAdmin(emergencyAdmin);
+
+        emit NewStrategy(address(_newStrategy), _asset);
+
+        flexibleDeployments[_asset] = address(_newStrategy);
         return address(_newStrategy);
     }
 
