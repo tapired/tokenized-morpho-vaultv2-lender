@@ -10,9 +10,7 @@ import {UniswapV3Swapper} from "@periphery/swappers/UniswapV3Swapper.sol";
 import {IMerklDistributor} from "./interfaces/IMerklDistributor.sol";
 
 contract MorphoVaultV2Lender is
-    Base4626Compounder,
-    AuctionSwapper,
-    UniswapV3Swapper
+    UniswapV3Swapper, AuctionSwapper, Base4626Compounder
 {
     using SafeERC20 for ERC20;
 
@@ -109,8 +107,7 @@ contract MorphoVaultV2Lender is
         address _token1,
         uint24 _fee
     ) external onlyManagement {
-        uniFees[_token0][_token1] = _fee;
-        uniFees[_token1][_token0] = _fee;
+        _setUniFees(_token0, _token1, _fee);
     }
 
     function setBase(address _base) external onlyManagement {
