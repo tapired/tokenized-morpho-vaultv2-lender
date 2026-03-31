@@ -51,8 +51,6 @@ contract Setup is Test, IEvents {
 
     ///// Strategy Specific tings //////
     address public morphoVaultV2;
-    address public morphoVaultV1;
-    address public adapter;
     address public router = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
 
     function setUp() public virtual {
@@ -105,6 +103,9 @@ contract Setup is Test, IEvents {
 
         vm.prank(management);
         _strategy.acceptManagement();
+        
+        vm.prank(management);
+        _strategy.setOpen(true);
 
         return address(_strategy);
     }
@@ -182,8 +183,6 @@ contract Setup is Test, IEvents {
         if (_token == tokenAddrs["USDC"]) {
             // OG USDC mainnet
             morphoVaultV2 = 0xB885F6d448dA7E2C642Ec31190B629E40E87B069;
-            morphoVaultV1 = 0xF9bdDd4A9b3A45f980e11fDDE96e16364dDBEc49;
-            adapter = 0x2266DE055878C9E8A415ed4a955a61e2C3ef398C;
         }
     }
 }

@@ -4,7 +4,7 @@ pragma solidity ^0.8.18;
 import {BaseStrategy, ERC20} from "@tokenized-strategy/BaseStrategy.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
-import {Base4626Compounder} from "@periphery/Bases/4626Compounder/Base4626Compounder.sol";
+import {Base4626Compounder, Math} from "@periphery/Bases/4626Compounder/Base4626Compounder.sol";
 import {AuctionSwapper, Auction} from "@periphery/swappers/AuctionSwapper.sol";
 import {UniswapV3Swapper} from "@periphery/swappers/UniswapV3Swapper.sol";
 import {IMerklDistributor} from "./interfaces/IMerklDistributor.sol";
@@ -16,9 +16,7 @@ contract MorphoVaultV2Lender is
 {
     using SafeERC20 for ERC20;
 
-    IERC4626 public morphoVaultV1;
-    address public adapter; // MorphoV2 -> adapter -> MorphoV1
-    bool public open = true;
+    bool public open;
     mapping(address => bool) public allowed;
 
     address[] public rewardTokens;
@@ -31,12 +29,8 @@ contract MorphoVaultV2Lender is
         address _asset,
         string memory _name,
         address _morphoVaultV2,
-        address _morphoVaultV1,
-        address _adapter,
         address _router
     ) Base4626Compounder(_asset, _name, _morphoVaultV2) {
-        morphoVaultV1 = IERC4626(_morphoVaultV1);
-        adapter = _adapter;
         router = _router;
     }
 
@@ -44,22 +38,27 @@ contract MorphoVaultV2Lender is
                     OPTIONAL TO OVERRIDE BY STRATEGIST
     //////////////////////////////////////////////////////////////*/
 
-    // MorphoV2 -> adapter -> MorphoV1
+    // Assume no deposit limit. This may not be accurate
     function availableDepositLimit(
         address _owner
     ) public view override returns (uint256) {
         if (!open && !allowed[_owner]) {
             return 0;
         }
-        return morphoVaultV1.maxDeposit(address(adapter));
+        return type(uint256).max;
     }
 
-    // MorphoV2 -> adapter -> MorphoV1 and idle V2 balances
+    // We assume fully liquid, this may not be accurate
     function vaultsMaxWithdraw() public view override returns (uint256) {
-        return
-            morphoVaultV1.convertToAssets(
-                morphoVaultV1.maxRedeem(address(adapter))
-            ) + asset.balanceOf(address(vault));
+        return valueOfVault() + 1; // add one so max redeem rounds down correctly
+    }
+
+    function _emergencyWithdraw(uint256 _amount) internal override {
+        vault.redeem(
+            Math.min(balanceOfVault(), _amount),
+            address(this),
+            address(this)
+        );
     }
 
     ////////////////////////////////
