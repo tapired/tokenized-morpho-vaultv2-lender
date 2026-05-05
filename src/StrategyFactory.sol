@@ -41,12 +41,7 @@ contract StrategyFactory {
     ) external virtual returns (address) {
         IStrategyInterface _newStrategy = IStrategyInterface(
             address(
-                new MorphoVaultV2Lender(
-                    _asset,
-                    _name,
-                    _morphoVaultV2,
-                    _router
-                )
+                new MorphoVaultV2Lender(_asset, _name, _morphoVaultV2, _router)
             )
         );
 

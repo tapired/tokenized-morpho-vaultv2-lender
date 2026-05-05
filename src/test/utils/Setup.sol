@@ -103,7 +103,7 @@ contract Setup is Test, IEvents {
 
         vm.prank(management);
         _strategy.acceptManagement();
-        
+
         vm.prank(management);
         _strategy.setOpen(true);
 

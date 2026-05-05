@@ -4,10 +4,7 @@ pragma solidity ^0.8.18;
 import {Test} from "forge-std/Test.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {TokenizedStrategy} from "@tokenized-strategy/TokenizedStrategy.sol";
-import {
-    MorphoVaultV2Lender,
-    MorphoMarketParams
-} from "../Strategy.sol";
+import {MorphoVaultV2Lender, MorphoMarketParams} from "../Strategy.sol";
 
 contract MockAsset is ERC20 {
     constructor() ERC20("Mock Asset", "MOCK") {}
@@ -198,7 +195,10 @@ contract MockMorphoMarketV1AdapterV2 {
         morpho = _morpho;
     }
 
-    function setExpectedSupplyAssets(bytes32 marketId, uint256 amount) external {
+    function setExpectedSupplyAssets(
+        bytes32 marketId,
+        uint256 amount
+    ) external {
         expectedSupplyAssetsByMarket[marketId] = amount;
     }
 
@@ -240,7 +240,10 @@ contract AvailableDepositLimitTest is Test {
         public
         view
     {
-        assertEq(strategy.availableDepositLimit(address(this)), type(uint256).max);
+        assertEq(
+            strategy.availableDepositLimit(address(this)),
+            type(uint256).max
+        );
     }
 
     function test_availableDepositLimit_zeroWhenGateBlocks() public {
@@ -348,8 +351,8 @@ contract AvailableDepositLimitTest is Test {
         });
         bytes32 marketId = keccak256(abi.encode(marketParams));
         MockMorphoMarketV1AdapterV2 liquidityAdapter = new MockMorphoMarketV1AdapterV2(
-            address(morphoBlue)
-        );
+                address(morphoBlue)
+            );
 
         morphoVault.setShareBalance(address(strategy), 500e18);
         morphoVault.setLiquidityAdapterAndData(
@@ -382,8 +385,8 @@ contract AvailableDepositLimitTest is Test {
         });
         bytes32 marketId = keccak256(abi.encode(marketParams));
         MockMorphoMarketV1AdapterV2 liquidityAdapter = new MockMorphoMarketV1AdapterV2(
-            address(morphoBlue)
-        );
+                address(morphoBlue)
+            );
 
         morphoVault.setShareBalance(address(strategy), 150e18);
         morphoVault.setLiquidityAdapterAndData(

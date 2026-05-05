@@ -74,7 +74,11 @@ contract PYUSDVaultTest is Setup {
         vm.prank(user);
         strategy.redeem(shares, user, user);
 
-        assertGe(asset.balanceOf(user) + 1, balanceBefore + amount, "!final balance");
+        assertGe(
+            asset.balanceOf(user) + 1,
+            balanceBefore + amount,
+            "!final balance"
+        );
         assertLe(strategy.totalAssets(), 1, "!remainingAssets");
     }
 }

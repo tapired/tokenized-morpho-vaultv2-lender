@@ -42,7 +42,9 @@ interface IMorphoVaultV2Like is IERC4626 {
 interface IMorphoMarketV1AdapterV2Like {
     function morpho() external view returns (address);
 
-    function expectedSupplyAssets(bytes32 marketId) external view returns (uint256);
+    function expectedSupplyAssets(
+        bytes32 marketId
+    ) external view returns (uint256);
 }
 
 interface IMorphoBlueLike {
@@ -92,7 +94,7 @@ contract MorphoVaultV2Lender is
                     OPTIONAL TO OVERRIDE BY STRATEGIST
     //////////////////////////////////////////////////////////////*/
 
-    // Assume the adapter is market v1 adapter! 
+    // Assume the adapter is market v1 adapter!
     function availableDepositLimit(
         address _owner
     ) public view override returns (uint256) {
@@ -139,10 +141,7 @@ contract MorphoVaultV2Lender is
             _capHeadroom(
                 morphoVault,
                 keccak256(
-                    abi.encode(
-                        "collateralToken",
-                        marketParams.collateralToken
-                    )
+                    abi.encode("collateralToken", marketParams.collateralToken)
                 ),
                 firstTotalAssets
             )
@@ -226,12 +225,16 @@ contract MorphoVaultV2Lender is
 
                 if (marketParams.loanToken == address(asset)) {
                     bytes32 marketId = keccak256(abi.encode(marketParams));
-                    IMorphoMarketV1AdapterV2Like adapter = IMorphoMarketV1AdapterV2Like(liquidityAdapter);
+                    IMorphoMarketV1AdapterV2Like adapter = IMorphoMarketV1AdapterV2Like(
+                            liquidityAdapter
+                        );
 
                     try adapter.expectedSupplyAssets(marketId) returns (
                         uint256 adapterAssets
                     ) {
-                        try IMorphoBlueLike(adapter.morpho()).market(marketId) returns (
+                        try
+                            IMorphoBlueLike(adapter.morpho()).market(marketId)
+                        returns (
                             uint128 totalSupplyAssets,
                             uint128,
                             uint128 totalBorrowAssets,
