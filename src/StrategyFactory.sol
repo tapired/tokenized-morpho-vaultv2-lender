@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.18;
 
+import {MorphoVaultV2Limits} from "./MorphoVaultV2Limits.sol";
 import {MorphoVaultV2Lender} from "./Strategy.sol";
 import {IStrategyInterface} from "./interfaces/IStrategyInterface.sol";
 
@@ -8,6 +9,7 @@ contract StrategyFactory {
     event NewStrategy(address indexed strategy, address indexed asset);
 
     address public immutable emergencyAdmin;
+    MorphoVaultV2Limits public immutable limits;
 
     address public management;
     address public performanceFeeRecipient;
@@ -26,6 +28,7 @@ contract StrategyFactory {
         performanceFeeRecipient = _performanceFeeRecipient;
         keeper = _keeper;
         emergencyAdmin = _emergencyAdmin;
+        limits = new MorphoVaultV2Limits();
     }
 
     /**
@@ -41,7 +44,13 @@ contract StrategyFactory {
     ) external virtual returns (address) {
         IStrategyInterface _newStrategy = IStrategyInterface(
             address(
-                new MorphoVaultV2Lender(_asset, _name, _morphoVaultV2, _router)
+                new MorphoVaultV2Lender(
+                    _asset,
+                    _name,
+                    _morphoVaultV2,
+                    _router,
+                    address(limits)
+                )
             )
         );
 

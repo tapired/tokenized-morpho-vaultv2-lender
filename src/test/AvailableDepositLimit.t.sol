@@ -4,7 +4,11 @@ pragma solidity ^0.8.18;
 import {Test} from "forge-std/Test.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {TokenizedStrategy} from "@tokenized-strategy/TokenizedStrategy.sol";
-import {MorphoVaultV2Lender, MorphoMarketParams} from "../Strategy.sol";
+import {MorphoVaultV2Lender} from "../Strategy.sol";
+import {
+    MorphoVaultV2Limits,
+    MorphoMarketParams
+} from "../MorphoVaultV2Limits.sol";
 
 contract MockAsset is ERC20 {
     constructor() ERC20("Mock Asset", "MOCK") {}
@@ -217,6 +221,7 @@ contract AvailableDepositLimitTest is Test {
     MockAsset internal asset;
     MockMorphoVaultV2 internal morphoVault;
     MockMorphoBlue internal morphoBlue;
+    MorphoVaultV2Limits internal limits;
     MorphoVaultV2Lender internal strategy;
 
     function setUp() public {
@@ -226,11 +231,13 @@ contract AvailableDepositLimitTest is Test {
         asset = new MockAsset();
         morphoVault = new MockMorphoVaultV2(address(asset));
         morphoBlue = new MockMorphoBlue();
+        limits = new MorphoVaultV2Limits();
         strategy = new MorphoVaultV2Lender(
             address(asset),
             "Test Strategy",
             address(morphoVault),
-            address(1)
+            address(1),
+            address(limits)
         );
 
         strategy.setOpen(true);
