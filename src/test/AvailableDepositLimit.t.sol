@@ -213,6 +213,36 @@ contract MockMorphoMarketV1AdapterV2 {
     }
 }
 
+contract MockLimits {
+    uint256 public depositLimit;
+    uint256 public withdrawLimit;
+
+    function setDepositLimit(uint256 _depositLimit) external {
+        depositLimit = _depositLimit;
+    }
+
+    function setWithdrawLimit(uint256 _withdrawLimit) external {
+        withdrawLimit = _withdrawLimit;
+    }
+
+    function availableDepositLimit(
+        address,
+        address,
+        address
+    ) external view returns (uint256) {
+        return depositLimit;
+    }
+
+    function vaultsMaxWithdraw(
+        address,
+        address,
+        address,
+        uint256
+    ) external view returns (uint256) {
+        return withdrawLimit;
+    }
+}
+
 contract AvailableDepositLimitTest is Test {
     address internal constant TOKENIZED_STRATEGY =
         0xD377919FA87120584B21279a491F82D5265A139c;
@@ -260,6 +290,26 @@ contract AvailableDepositLimitTest is Test {
         morphoVault.setCanSendAssets(true);
         morphoVault.setCanReceiveShares(false);
         assertEq(strategy.availableDepositLimit(address(this)), 0);
+    }
+
+    function test_setLimits_updatesHelper() public {
+        MockLimits newLimits = new MockLimits();
+        newLimits.setDepositLimit(123e18);
+        newLimits.setWithdrawLimit(456e18);
+
+        strategy.setLimits(address(newLimits));
+
+        assertEq(address(strategy.limits()), address(newLimits));
+        assertEq(strategy.availableDepositLimit(address(this)), 123e18);
+        assertEq(strategy.vaultsMaxWithdraw(), 456e18);
+    }
+
+    function test_setLimits_onlyManagement() public {
+        MockLimits newLimits = new MockLimits();
+
+        vm.prank(address(0xBEEF));
+        vm.expectRevert("!management");
+        strategy.setLimits(address(newLimits));
     }
 
     function test_availableDepositLimit_usesMorphoCapHeadroom() public {

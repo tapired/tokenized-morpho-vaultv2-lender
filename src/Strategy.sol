@@ -20,7 +20,7 @@ contract MorphoVaultV2Lender is
     mapping(address => bool) public allowed;
 
     address[] public rewardTokens;
-    MorphoVaultV2Limits public immutable limits;
+    MorphoVaultV2Limits public limits;
 
     /// @notice The Merkl Distributor contract for claiming rewards
     IMerklDistributor public constant MERKL_DISTRIBUTOR =
@@ -62,6 +62,11 @@ contract MorphoVaultV2Lender is
             address(this),
             valueOfVault()
         );
+    }
+
+    function setLimits(address _limits) external onlyManagement {
+        require(_limits != address(0), "zero address");
+        limits = MorphoVaultV2Limits(_limits);
     }
 
     function _emergencyWithdraw(uint256 _amount) internal override {

@@ -9,4 +9,6 @@ interface IStrategyInterface is IStrategy {
     function setOpen(bool _open) external;
     function allowed(address _user) external view returns (bool);
     function setAllowed(address _user, bool _allowed) external;
+    function limits() external view returns (address);
+    function setLimits(address _limits) external;
 }
