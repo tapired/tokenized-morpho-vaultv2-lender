@@ -25,12 +25,18 @@ contract ShutdownTest is Setup {
 
         assertEq(strategy.totalAssets(), _amount, "!totalAssets");
 
-        // Make sure we can still withdraw the full amount
+        // A 1-unit share rounding gap is acceptable after converting
+        // through the underlying Morpho vault.
         uint256 balanceBefore = asset.balanceOf(user);
+        uint256 shares = strategy.balanceOf(user);
+        uint256 redeemableShares = strategy.maxRedeem(user);
 
-        // Withdraw all funds
+        assertLe(redeemableShares, shares, "!redeemableShares");
+        assertLe(shares - redeemableShares, 1, "!rounding");
+
+        // Withdraw all redeemable funds
         vm.prank(user);
-        strategy.redeem(_amount, user, user);
+        strategy.redeem(redeemableShares, user, user);
 
         assertGe(
             asset.balanceOf(user) + 1,
@@ -60,12 +66,18 @@ contract ShutdownTest is Setup {
         vm.prank(emergencyAdmin);
         strategy.emergencyWithdraw(type(uint256).max);
 
-        // Make sure we can still withdraw the full amount
+        // A 1-unit share rounding gap is acceptable after converting
+        // through the underlying Morpho vault.
         uint256 balanceBefore = asset.balanceOf(user);
+        uint256 shares = strategy.balanceOf(user);
+        uint256 redeemableShares = strategy.maxRedeem(user);
 
-        // Withdraw all funds
+        assertLe(redeemableShares, shares, "!redeemableShares");
+        assertLe(shares - redeemableShares, 1, "!rounding");
+
+        // Withdraw all redeemable funds
         vm.prank(user);
-        strategy.redeem(_amount, user, user);
+        strategy.redeem(redeemableShares, user, user);
 
         assertGe(
             asset.balanceOf(user) + 1,

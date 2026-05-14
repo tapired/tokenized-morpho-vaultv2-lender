@@ -49,6 +49,9 @@ contract PYUSDVaultTest is Setup {
 
     function test_pyusdVault_depositReportRedeem() public {
         uint256 amount = 10_000 * 10 ** decimals;
+        uint256 maxDeposit = strategy.maxDeposit(user);
+        assertGt(maxDeposit, 0, "zero max deposit");
+        amount = amount > maxDeposit ? maxDeposit : amount;
 
         mintAndDepositIntoStrategy(strategy, user, amount);
 
@@ -69,16 +72,21 @@ contract PYUSDVaultTest is Setup {
         assertLe(loss, 1, "!loss");
 
         uint256 shares = strategy.balanceOf(user);
+        uint256 redeemableShares = strategy.maxRedeem(user);
         uint256 balanceBefore = asset.balanceOf(user);
 
+        assertLe(redeemableShares, shares, "max redeem exceeds shares");
+        assertLe(shares - redeemableShares, 1, "unexpected rounding");
+
         vm.prank(user);
-        strategy.redeem(shares, user, user);
+        strategy.redeem(redeemableShares, user, user);
 
         assertGe(
             asset.balanceOf(user) + 1,
             balanceBefore + amount,
             "!final balance"
         );
+        assertLe(strategy.balanceOf(user), 1, "!remainingShares");
         assertLe(strategy.totalAssets(), 1, "!remainingAssets");
     }
 }

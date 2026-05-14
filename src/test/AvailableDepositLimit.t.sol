@@ -5,10 +5,8 @@ import {Test} from "forge-std/Test.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {TokenizedStrategy} from "@tokenized-strategy/TokenizedStrategy.sol";
 import {MorphoVaultV2Lender} from "../Strategy.sol";
-import {
-    MorphoVaultV2Limits,
-    MorphoMarketParams
-} from "../MorphoVaultV2Limits.sol";
+import {MorphoVaultV2Limits, MorphoMarketParams} from "../MorphoVaultV2Limits.sol";
+import {StrategyFactory} from "../StrategyFactory.sol";
 
 contract MockAsset is ERC20 {
     constructor() ERC20("Mock Asset", "MOCK") {}
@@ -225,16 +223,11 @@ contract MockLimits {
         withdrawLimit = _withdrawLimit;
     }
 
-    function availableDepositLimit(
-        address,
-        address,
-        address
-    ) external view returns (uint256) {
+    function availableDepositLimit(address) external view returns (uint256) {
         return depositLimit;
     }
 
     function vaultsMaxWithdraw(
-        address,
         address,
         address,
         uint256
@@ -283,13 +276,14 @@ contract AvailableDepositLimitTest is Test {
         );
     }
 
-    function test_availableDepositLimit_zeroWhenGateBlocks() public {
+    function test_availableDepositLimit_ignoresGateFlags() public {
         morphoVault.setCanSendAssets(false);
-        assertEq(strategy.availableDepositLimit(address(this)), 0);
-
-        morphoVault.setCanSendAssets(true);
         morphoVault.setCanReceiveShares(false);
-        assertEq(strategy.availableDepositLimit(address(this)), 0);
+
+        assertEq(
+            strategy.availableDepositLimit(address(this)),
+            type(uint256).max
+        );
     }
 
     function test_setLimits_updatesHelper() public {
@@ -310,6 +304,31 @@ contract AvailableDepositLimitTest is Test {
         vm.prank(address(0xBEEF));
         vm.expectRevert("!management");
         strategy.setLimits(address(newLimits));
+    }
+
+    function test_factoryCanDeployStrategyWithCustomLimits() public {
+        MockLimits customLimits = new MockLimits();
+        customLimits.setDepositLimit(123e18);
+        customLimits.setWithdrawLimit(456e18);
+
+        StrategyFactory factory = new StrategyFactory(
+            address(this),
+            address(0xBEEF),
+            address(0xCAFE),
+            address(0xF00D)
+        );
+
+        MorphoVaultV2Lender deployedStrategy = MorphoVaultV2Lender(
+            factory.newStrategyWithLimits(
+                address(asset),
+                "Factory Strategy",
+                address(morphoVault),
+                address(1),
+                address(customLimits)
+            )
+        );
+
+        assertEq(address(deployedStrategy.limits()), address(customLimits));
     }
 
     function test_availableDepositLimit_usesMorphoCapHeadroom() public {
@@ -386,16 +405,13 @@ contract AvailableDepositLimitTest is Test {
         assertEq(strategy.availableWithdrawLimit(address(this)), 40e18);
     }
 
-    function test_availableWithdrawLimit_zeroWhenExitGateBlocks() public {
+    function test_availableWithdrawLimit_ignoresGateFlags() public {
         morphoVault.setShareBalance(address(strategy), 100e18);
         asset.mint(address(morphoVault), 100e18);
 
         morphoVault.setCanSendShares(false);
-        assertEq(strategy.vaultsMaxWithdraw(), 0);
-
-        morphoVault.setCanSendShares(true);
         morphoVault.setCanReceiveAssets(false);
-        assertEq(strategy.vaultsMaxWithdraw(), 0);
+        assertEq(strategy.vaultsMaxWithdraw(), 100e18);
     }
 
     function test_availableWithdrawLimit_usesIdlePlusMarketLiquidity() public {
