@@ -120,8 +120,8 @@ contract MorphoVaultV2Lender is
         address _from
     ) external override onlyKeepers returns (uint256) {
         require(
-            _from != address(asset) && _from != address(vault),
-            "cannot kick asset"
+            _from != address(asset) && _from != address(vault) && _from != address(this),
+            "cannot kick asset, vault, or self"
         );
         return _kickAuction(_from);
     }
