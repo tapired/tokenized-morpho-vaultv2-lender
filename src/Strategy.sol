@@ -63,7 +63,7 @@ contract MorphoVaultV2Lender is
             return 0;
         }
 
-        return limits.availableDepositLimit(address(vault));
+        return limits.availableDepositLimit(address(vault), address(this));
     }
 
     /// @notice Returns the assets currently withdrawable from the Morpho vault position.
@@ -72,6 +72,7 @@ contract MorphoVaultV2Lender is
         return
             limits.vaultsMaxWithdraw(
                 address(vault),
+                address(this),
                 address(asset),
                 valueOfVault()
             );
@@ -85,13 +86,12 @@ contract MorphoVaultV2Lender is
     }
 
     /// @notice Withdraws funds from the Morpho vault during emergency shutdown handling.
-    /// @param _amount The target amount of assets to free.
+    /// @param _amount The target amount passed through to the underlying vault redeem path.
     function _emergencyWithdraw(uint256 _amount) internal override {
-        uint256 assetsToWithdraw = Math.min(_amount, vaultsMaxWithdraw());
-        uint256 shares = vault.previewWithdraw(assetsToWithdraw);
-
+        // Intentionally clamp only by our vault share balance here so emergency
+        // exits do not depend on upstream max helper behavior.
         vault.redeem(
-            Math.min(balanceOfVault(), shares),
+            Math.min(balanceOfVault(), _amount),
             address(this),
             address(this)
         );
@@ -120,7 +120,9 @@ contract MorphoVaultV2Lender is
         address _from
     ) external override onlyKeepers returns (uint256) {
         require(
-            _from != address(asset) && _from != address(vault) && _from != address(this),
+            _from != address(asset) &&
+                _from != address(vault) &&
+                _from != address(this),
             "cannot kick asset, vault, or self"
         );
         return _kickAuction(_from);

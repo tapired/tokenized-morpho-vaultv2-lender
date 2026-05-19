@@ -223,11 +223,15 @@ contract MockLimits {
         withdrawLimit = _withdrawLimit;
     }
 
-    function availableDepositLimit(address) external view returns (uint256) {
+    function availableDepositLimit(
+        address,
+        address
+    ) external view returns (uint256) {
         return depositLimit;
     }
 
     function vaultsMaxWithdraw(
+        address,
         address,
         address,
         uint256
@@ -280,10 +284,7 @@ contract AvailableDepositLimitTest is Test {
         morphoVault.setCanSendAssets(false);
         morphoVault.setCanReceiveShares(false);
 
-        assertEq(
-            strategy.availableDepositLimit(address(this)),
-            type(uint256).max
-        );
+        assertEq(strategy.availableDepositLimit(address(this)), 0);
     }
 
     function test_setLimits_updatesHelper() public {
@@ -411,7 +412,7 @@ contract AvailableDepositLimitTest is Test {
 
         morphoVault.setCanSendShares(false);
         morphoVault.setCanReceiveAssets(false);
-        assertEq(strategy.vaultsMaxWithdraw(), 100e18);
+        assertEq(strategy.vaultsMaxWithdraw(), 0);
     }
 
     function test_availableWithdrawLimit_usesIdlePlusMarketLiquidity() public {
