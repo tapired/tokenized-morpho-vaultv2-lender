@@ -46,8 +46,9 @@ contract OperationTest is Setup {
         uint256 balanceBefore = asset.balanceOf(user);
 
         // Withdraw all funds
+        uint256 shares = strategy.balanceOf(user);
         vm.prank(user);
-        strategy.redeem(_amount, user, user);
+        strategy.redeem(shares, user, user);
 
         assertGe(
             asset.balanceOf(user),
@@ -88,8 +89,9 @@ contract OperationTest is Setup {
         uint256 balanceBefore = asset.balanceOf(user);
 
         // Withdraw all funds
+        uint256 shares = strategy.balanceOf(user);
         vm.prank(user);
-        strategy.redeem(_amount, user, user);
+        strategy.redeem(shares, user, user);
 
         assertGe(
             asset.balanceOf(user),
@@ -138,8 +140,9 @@ contract OperationTest is Setup {
         uint256 balanceBefore = asset.balanceOf(user);
 
         // Withdraw all funds
+        uint256 userShares = strategy.balanceOf(user);
         vm.prank(user);
-        strategy.redeem(_amount, user, user);
+        strategy.redeem(userShares, user, user);
 
         assertGe(
             asset.balanceOf(user),
