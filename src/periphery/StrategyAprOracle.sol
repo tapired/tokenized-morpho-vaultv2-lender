@@ -121,7 +121,7 @@ contract StrategyAprOracle is AprOracleBase {
     }
 
     /// @notice Returns the expected underlying APR for a Morpho Vault V2 after a debt change.
-    /// @dev Current APR is weighted across all existing markets.
+    /// @dev Current APR is weighted across all existing markets on the first adapter.
     /// @dev The debt-change simulation only mutates the liquidity-adapter market, because deposits route there and
     /// withdrawals first consume idle assets before deallocating from that market.
     /// @param _vault The Morpho Vault V2 to query.
@@ -168,23 +168,24 @@ contract StrategyAprOracle is AprOracleBase {
         int256 delta,
         uint256 idleAssets
     ) internal view returns (uint256 rate) {
-        uint256 adaptersLength = vault.adaptersLength();
+        if (vault.adaptersLength() == 0) {
+            return 0;
+        }
 
-        for (uint256 i = 0; i < adaptersLength; ++i) {
-            IMorphoMarketV1AdapterV2Like adapter = IMorphoMarketV1AdapterV2Like(
-                vault.adapters(i)
+        // We assume the first adapter is the market adapter always. 
+        IMorphoMarketV1AdapterV2Like adapter = IMorphoMarketV1AdapterV2Like(
+            vault.adapters(0)
+        );
+        uint256 marketIdsLength = adapter.marketIdsLength();
+
+        for (uint256 j = 0; j < marketIdsLength; ++j) {
+            rate += _marketContribution(
+                adapter,
+                adapter.marketIds(j),
+                liquidityTarget,
+                delta,
+                idleAssets
             );
-            uint256 marketIdsLength = adapter.marketIdsLength();
-
-            for (uint256 j = 0; j < marketIdsLength; ++j) {
-                rate += _marketContribution(
-                    adapter,
-                    adapter.marketIds(j),
-                    liquidityTarget,
-                    delta,
-                    idleAssets
-                );
-            }
         }
     }
 
