@@ -333,8 +333,121 @@ contract AvailableDepositLimitTest is Test {
     }
 
     function test_availableDepositLimit_usesMorphoCapHeadroom() public {
-        address liquidityAdapter = address(0xA11CE);
-        MorphoMarketParams memory marketParams = MorphoMarketParams({
+        (
+            MockMorphoMarketV1AdapterV2 liquidityAdapter,
+            MorphoMarketParams memory marketParams
+        ) = _setUpLiquidityAdapter();
+
+        bytes32 adapterId = keccak256(
+            abi.encode("this", address(liquidityAdapter))
+        );
+        bytes32 collateralId = keccak256(
+            abi.encode("collateralToken", marketParams.collateralToken)
+        );
+        bytes32 marketId = keccak256(
+            abi.encode(
+                "this/marketParams",
+                address(liquidityAdapter),
+                marketParams
+            )
+        );
+
+        morphoVault.setCaps(adapterId, 900e18, WAD, 500e18);
+        morphoVault.setCaps(collateralId, 800e18, 0.6e18, 100e18);
+        morphoVault.setCaps(marketId, 700e18, WAD, 600e18);
+
+        // The adapter is fully synced: expected assets match the recorded
+        // allocation, so the raw cap headroom is the limit.
+        liquidityAdapter.setExpectedSupplyAssets(
+            keccak256(abi.encode(marketParams)),
+            600e18
+        );
+
+        assertEq(strategy.availableDepositLimit(address(this)), 100e18);
+    }
+
+    function test_availableDepositLimit_subtractsPendingInterest() public {
+        (
+            MockMorphoMarketV1AdapterV2 liquidityAdapter,
+            MorphoMarketParams memory marketParams
+        ) = _setUpLiquidityAdapter();
+
+        bytes32 adapterId = keccak256(
+            abi.encode("this", address(liquidityAdapter))
+        );
+        bytes32 collateralId = keccak256(
+            abi.encode("collateralToken", marketParams.collateralToken)
+        );
+        bytes32 marketId = keccak256(
+            abi.encode(
+                "this/marketParams",
+                address(liquidityAdapter),
+                marketParams
+            )
+        );
+
+        morphoVault.setCaps(adapterId, 900e18, WAD, 500e18);
+        morphoVault.setCaps(collateralId, 800e18, 0.6e18, 100e18);
+        morphoVault.setCaps(marketId, 700e18, WAD, 600e18);
+
+        // 5e18 of interest has accrued on the liquidity market since the
+        // vault's allocation was last synced. On allocate the adapter will
+        // report deposited assets + 5e18, so only 95e18 fits under the cap.
+        liquidityAdapter.setExpectedSupplyAssets(
+            keccak256(abi.encode(marketParams)),
+            605e18
+        );
+
+        assertEq(strategy.availableDepositLimit(address(this)), 95e18);
+    }
+
+    function test_availableDepositLimit_zeroWhenPendingInterestExceedsHeadroom()
+        public
+    {
+        (
+            MockMorphoMarketV1AdapterV2 liquidityAdapter,
+            MorphoMarketParams memory marketParams
+        ) = _setUpLiquidityAdapter();
+
+        bytes32 adapterId = keccak256(
+            abi.encode("this", address(liquidityAdapter))
+        );
+        bytes32 collateralId = keccak256(
+            abi.encode("collateralToken", marketParams.collateralToken)
+        );
+        bytes32 marketId = keccak256(
+            abi.encode(
+                "this/marketParams",
+                address(liquidityAdapter),
+                marketParams
+            )
+        );
+
+        morphoVault.setCaps(adapterId, 900e18, WAD, 500e18);
+        morphoVault.setCaps(collateralId, 800e18, 0.6e18, 100e18);
+        morphoVault.setCaps(marketId, 700e18, WAD, 600e18);
+
+        // Pending interest exceeds the raw headroom: nothing can be deposited
+        // without tripping AbsoluteCapExceeded.
+        liquidityAdapter.setExpectedSupplyAssets(
+            keccak256(abi.encode(marketParams)),
+            750e18
+        );
+
+        assertEq(strategy.availableDepositLimit(address(this)), 0);
+    }
+
+    function _setUpLiquidityAdapter()
+        internal
+        returns (
+            MockMorphoMarketV1AdapterV2 liquidityAdapter,
+            MorphoMarketParams memory marketParams
+        )
+    {
+        liquidityAdapter = new MockMorphoMarketV1AdapterV2(
+            address(morphoBlue)
+        );
+        marketParams = MorphoMarketParams({
             loanToken: address(asset),
             collateralToken: address(0xBEEF),
             oracle: address(0xCAFE),
@@ -343,24 +456,10 @@ contract AvailableDepositLimitTest is Test {
         });
 
         morphoVault.setLiquidityAdapterAndData(
-            liquidityAdapter,
+            address(liquidityAdapter),
             abi.encode(marketParams)
         );
         morphoVault.setTotalAssets(1_000e18);
-
-        bytes32 adapterId = keccak256(abi.encode("this", liquidityAdapter));
-        bytes32 collateralId = keccak256(
-            abi.encode("collateralToken", marketParams.collateralToken)
-        );
-        bytes32 marketId = keccak256(
-            abi.encode("this/marketParams", liquidityAdapter, marketParams)
-        );
-
-        morphoVault.setCaps(adapterId, 900e18, WAD, 500e18);
-        morphoVault.setCaps(collateralId, 800e18, 0.6e18, 100e18);
-        morphoVault.setCaps(marketId, 700e18, WAD, 600e18);
-
-        assertEq(strategy.availableDepositLimit(address(this)), 100e18);
     }
 
     function test_availableDepositLimit_treatsRelativeCapAsBindingUnlessWad()
