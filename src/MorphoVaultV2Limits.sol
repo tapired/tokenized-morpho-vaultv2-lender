@@ -133,22 +133,53 @@ contract MorphoVaultV2Limits {
             )
         );
 
-        limit = Math.min(
-            limit,
-            _capHeadroom(
-                morphoVault,
-                keccak256(
-                    abi.encode(
-                        "this/marketParams",
-                        liquidityAdapter,
-                        marketParams
-                    )
-                ),
-                firstTotalAssets
-            )
+        bytes32 marketAllocationId = keccak256(
+            abi.encode("this/marketParams", liquidityAdapter, marketParams)
         );
 
-        return limit;
+        limit = Math.min(
+            limit,
+            _capHeadroom(morphoVault, marketAllocationId, firstTotalAssets)
+        );
+
+        if (limit == 0) {
+            return 0;
+        }
+
+        // When the vault allocates, the Market V1 adapter reports the deposited
+        // assets PLUS the interest accrued on the liquidity market since its
+        // allocation was last synced, and every cap is checked against that
+        // increased allocation. The allocation() values used above are stale by
+        // this pending interest, so depositing the full raw headroom reverts
+        // with AbsoluteCapExceeded. Reduce the limit accordingly.
+        uint256 pendingInterest = _pendingInterest(
+            morphoVault,
+            liquidityAdapter,
+            marketAllocationId,
+            marketParams
+        );
+
+        return limit > pendingInterest ? limit - pendingInterest : 0;
+    }
+
+    /// @notice Returns the interest accrued on the liquidity market that is not
+    ///         yet reflected in the vault's allocation accounting.
+    /// @param morphoVault The Morpho Vault V2.
+    /// @param liquidityAdapter The Market V1 liquidity adapter.
+    /// @param marketAllocationId The vault allocation id of the liquidity market.
+    /// @param marketParams The liquidity market parameters.
+    /// @return The accrued-but-unsynced interest in asset units.
+    function _pendingInterest(
+        IMorphoVaultV2Like morphoVault,
+        address liquidityAdapter,
+        bytes32 marketAllocationId,
+        MorphoMarketParams memory marketParams
+    ) internal view returns (uint256) {
+        uint256 expected = IMorphoMarketV1AdapterV2Like(liquidityAdapter)
+            .expectedSupplyAssets(keccak256(abi.encode(marketParams)));
+        uint256 stored = morphoVault.allocation(marketAllocationId);
+
+        return expected > stored ? expected - stored : 0;
     }
 
     /// @notice Returns the maximum assets currently withdrawable from a Morpho Vault V2.
